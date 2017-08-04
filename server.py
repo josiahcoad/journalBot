@@ -1,5 +1,9 @@
 # created by Josiah Coad and Noah Coad on 2017-08-03
 
+# mongo commands
+# mongo ds117093.mlab.com:17093/journalbot -u jbot -p hackcity
+# db.checkins.find()
+
 # example how to forward a port from a remote maching to this one
 # ssh -R 8092:localhost:8092 digger:bubblejuice@neo.coad.net
 
@@ -19,21 +23,35 @@ db = MongoClient(dbcon).get_default_database()
 # connect to twilio
 twilio_client = Client(twilio_account_sid, twilio_auth_token)
 
+# user commands
+txtcmds = {
+	"log": lambda x: ", ".join([x['body'] for x in x['db'].checkins.find({'from': x['msg']['From']}, {'body': 1, '_id': 0})]),
+	"secret": lambda x: "you are the master hacker. I bow before you.",
+	"help": lambda x: "commands: log, <something else, wahaha>"
+}
+
 @route('/')
 def index():
 	return '<b>Welcome user</b>!'
 
 @route('/hitme/<phone>')
 def register(phone):
-	message = client.messages.create(to="+12088192625", from_=from_, body="Hello from Python!")
-	return template('<b>Saying Hello to {{phone}}</b> w SID {{sid}}!', phone=phone, sid=message.sid)
+	message = twilio_client.messages.create(to="+1%s" % phone, from_=twilio_from, body="One word. How are you feeling?")
+	return template("<b>Asking how you're doing at {{phone}}</b> w SID {{sid}}!", phone=phone, sid=message.sid)
 
 # http://neo.coad.net:8092/twilio/incoming_sms
 @route('/twilio/incoming_sms', method='POST')
 def incoming_sms():
-	fields = {x:request.forms.get(x) for x in ['Body', 'From']}
-	print(fields)
-	return "thank you"
+	msg = {x:request.forms.get(x) for x in ['Body', 'From']}
+	if msg['Body'][4:] in txtcmds.keys():
+		response = txtcmds[msg['Body'][4:]]({'db': db, 'msg': msg})
+		if response: 
+			message = twilio_client.messages.create(to=msg['From'], from_=twilio_from, body=response)
+	else:
+		db.checkins.insert({'from': msg['From'], 'body': msg['Body']})
+		message = twilio_client.messages.create(to=msg['From'], from_=twilio_from, body="Thanks.  I've logged it.")
+	print("Incoming txt: %s" % msg)
+	# return "thank you"
 
 @route('/capture/json', method='POST')
 def capture():
