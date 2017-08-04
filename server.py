@@ -36,29 +36,23 @@ txtcmds = {
 def index():
 	return '<b>Welcome user</b>!'
 
+# send user a txt msg
 @route('/hitme/<phone>')
 def register(phone):
 	message = twilio_client.messages.create(to="+1%s" % phone, from_=twilio_from, body="One word. How are you feeling?")
 	return template("<b>Asking how you're doing at {{phone}}</b> w SID {{sid}}!", phone=phone, sid=message.sid)
 
+# recieve user's txt msgs
 # http://neo.coad.net:8092/twilio/incoming_sms
 @route('/twilio/incoming_sms', method='POST')
 def incoming_sms():
 	msg = {x:request.forms.get(x) for x in ['Body', 'From']}
 	if msg['Body'][4:] in txtcmds.keys():
 		response = txtcmds[msg['Body'][4:]]({'db': db, 'msg': msg})
-		if response: 
-			message = twilio_client.messages.create(to=msg['From'], from_=twilio_from, body=response)
+		if response: message = twilio_client.messages.create(to=msg['From'], from_=twilio_from, body=response)
 	else:
 		db.checkins.insert({'from': msg['From'], 'body': msg['Body']})
 		message = twilio_client.messages.create(to=msg['From'], from_=twilio_from, body="Thanks.  I've logged it.")
 	print("Incoming txt: %s" % msg)
-	# return "thank you"
 
-@route('/capture/json', method='POST')
-def capture():
-	with template.TemporaryFile(mode='w', suffix='.json', dir='captures') as f:
-		f.write(request.json)
-
-# run(host='localhost', port=8092)
 run(host='0.0.0.0', port=8092, reloader=True)
