@@ -1,5 +1,7 @@
 # created by Josiah Coad and Noah Coad on 2017-08-03
 
+# pip3 install bottle pymongo twilio
+
 # mongo commands
 # mongo ds117093.mlab.com:17093/journalbot -u jbot -p hackcity
 # db.checkins.find()
